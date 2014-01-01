@@ -1,30 +1,29 @@
 # Bidiagonal matrices
 type Bidiagonal{T} <: AbstractMatrix{T}
-    dv::Vector{T} # diagonal
-    ev::Vector{T} # sub/super diagonal
+    dv::AbstractVector{T} # diagonal
+    ev::AbstractVector{T} # sub/super diagonal
     isupper::Bool # is upper bidiagonal (true) or lower (false)
-    function Bidiagonal{T}(dv::Vector{T}, ev::Vector{T}, isupper::Bool)
+    function Bidiagonal{T}(dv::AbstractVector{T}, ev::AbstractVector{T}, isupper::Bool)
         length(ev)==length(dv)-1 ? new(dv, ev, isupper) : throw(DimensionMismatch(""))
     end
 end
 
-Bidiagonal{T<:BlasFloat}(dv::Vector{T}, ev::Vector{T}, isupper::Bool)=Bidiagonal{T}(copy(dv), copy(ev), isupper)
-Bidiagonal{T}(dv::Vector{T}, ev::Vector{T}) = error("Did you want an upper or lower Bidiagonal? Try again with an additional true (upper) or false (lower) argument.")
+Bidiagonal{T}(dv::AbstractVector{T}, ev::AbstractVector{T}, isupper::Bool)=Bidiagonal{T}(copy(dv), copy(ev), isupper)
+Bidiagonal{T}(dv::AbstractVector{T}, ev::AbstractVector{T}) = error("Did you want an upper or lower Bidiagonal? Try again with an additional true (upper) or false (lower) argument.")
 
 #Convert from BLAS uplo flag to boolean internal
-function Bidiagonal{T<:BlasFloat}(dv::Vector{T}, ev::Vector{T}, uplo::BlasChar)
+function Bidiagonal(dv::AbstractVector, ev::AbstractVector, uplo::BlasChar)
     if uplo=='U'
-        isupper = true
+        return Bidiagonal(copy(dv), copy(ev), true)
     elseif uplo=='L'
-        isupper = false
+        return Bidiagonal(copy(dv), copy(ev), false)
     else
         error("Bidiagonal can only be upper 'U' or lower 'L' but you said '$uplo''")
     end
-    Bidiagonal{T}(copy(dv), copy(ev), isupper)
 end
 
-function Bidiagonal{Td<:Number,Te<:Number}(dv::Vector{Td}, ev::Vector{Te}, isupper::Bool)
     T = promote(Td,Te)
+function Bidiagonal{Td,Te}(dv::AbstractVector{Td}, ev::AbstractVector{Te}, isupper::Bool)
     Bidiagonal(convert(Vector{T}, dv), convert(Vector{T}, ev), isupper)
 end
 
@@ -99,12 +98,7 @@ end
 SpecialMatrix = Union(Diagonal, Bidiagonal, SymTridiagonal, Tridiagonal, Triangular)
 *(A::SpecialMatrix, B::SpecialMatrix)=full(A)*full(B)
 
-# solver uses tridiagonal gtsv! 
-function \{T<:BlasFloat}(M::Bidiagonal{T}, rhs::StridedVecOrMat{T})
-    stride(rhs, 1)==1 || solve(M, rhs) #generic fallback
-    z = zeros(size(M, 1) - 1)
-    apply(LAPACK.gtsv!, M.isupper ? (z, copy(M.dv), copy(M.ev), copy(rhs)) : (copy(M.ev), copy(M.dv), z, copy(rhs)))
-end
+\(M::Bidiagonal, rhs::StridedVecOrMat)=Tridiagonal(M)\rhs
 
 # Eigensystems
 eigvals{T<:Number}(M::Bidiagonal{T}) = M.isupper ? M.dv : reverse(M.dv)
@@ -133,7 +127,7 @@ function eigvecs{T<:Number}(M::Bidiagonal{T})
     end
     Q
 end
-eigfact{T<:Number}(M::Bidiagonal{T}) = Eigen{T,T}(eigvals(M), eigvecs(M))
+eigfact(M::Bidiagonal) = Eigen(eigvals(M), eigvecs(M))
 
 #Singular values
 function svdfact(M::Bidiagonal, thin::Bool=true)
