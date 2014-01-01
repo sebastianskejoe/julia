@@ -637,7 +637,7 @@ for elty in (Float32, Float64)
 end
 
 #Bidiagonal matrices
-for relty in (Float16, Float32, Float64), elty in (relty, Complex{relty})
+for relty in (Float16, Float32, Float64, BigFloat), elty in (relty, Complex{relty})
     dv = convert(Vector{elty}, randn(n))
     ev = convert(Vector{elty}, randn(n-1))
     if (elty <: Complex)
