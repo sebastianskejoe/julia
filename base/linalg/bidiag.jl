@@ -22,8 +22,8 @@ function Bidiagonal(dv::AbstractVector, ev::AbstractVector, uplo::BlasChar)
     end
 end
 
-    T = promote(Td,Te)
 function Bidiagonal{Td,Te}(dv::AbstractVector{Td}, ev::AbstractVector{Te}, isupper::Bool)
+    T = promote_type(Td,Te)
     Bidiagonal(convert(Vector{T}, dv), convert(Vector{T}, ev), isupper)
 end
 
