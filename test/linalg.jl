@@ -636,9 +636,8 @@ for elty in (Float32, Float64)
     test_approx_eq_vecs(v, evecs)
 end
 
-
 #Bidiagonal matrices
-for relty in (Float32, Float64), elty in (relty, Complex{relty})
+for relty in (Float16, Float32, Float64), elty in (relty, Complex{relty})
     dv = convert(Vector{elty}, randn(n))
     ev = convert(Vector{elty}, randn(n-1))
     if (elty <: Complex)
@@ -659,7 +658,7 @@ for relty in (Float32, Float64), elty in (relty, Complex{relty})
             @test func(func(T)) == T
         end
 
-        if (elty <: Real)
+        if (elty <: BlasReal)
             Tfull = full(T)
             #Test singular values/vectors
             @test_approx_eq svdvals(Tfull) svdvals(T)
