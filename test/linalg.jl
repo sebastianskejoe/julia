@@ -1,5 +1,5 @@
 import Base.LinAlg
-import Base.LinAlg: BlasFloat
+import Base.LinAlg: BlasComplex, BlasFloat, BlasReal
 
 n     = 10
 srand(1234321)
@@ -668,14 +668,14 @@ for relty in (Float32, Float64), elty in (relty, Complex{relty})
             @test_approx_eq d1 d2
             test_approx_eq_vecs(u1, u2) 
             test_approx_eq_vecs(v1, v2)
-            @test_approx_eq_eps 0 norm(u2*diagm(d2)*v2'-Tfull) 2norm(u1*diagm(d1)*v1'-Tfull)
+            @test_approx_eq_eps 0 norm(u2*diagm(d2)*v2'-Tfull) n*norm(u1*diagm(d1)*v1'-Tfull)
      
             #Test eigenvalues/vectors
             d1, v1 = eig(Tfull)
             d2, v2 = eig(T)
             @test_approx_eq d1 d2
             test_approx_eq_vecs(v1, v2) 
-            @test_approx_eq_eps 0 norm(v2*diagm(d2)*inv(v2)-Tfull) 2norm(v1*diagm(d1)*inv(v1)-Tfull)
+            @test_approx_eq_eps 0 norm(v2*diagm(d2)*inv(v2)-Tfull) n*norm(v1*diagm(d1)*inv(v1)-Tfull)
         end
     end
 end
@@ -696,8 +696,8 @@ for relty in (Float16, Float32, Float64, BigFloat), elty in (relty, Complex{relt
     @test_approx_eq_eps D*v DM*v n*eps(relty)*(elty<:Complex ? 2:1)
     @test_approx_eq_eps D*U DM*U n^2*eps(relty)*(elty<:Complex ? 2:1)
     if relty != BigFloat 
-        @test_approx_eq_eps D\v DM\v n*eps(relty)*(elty<:Complex ? 2:1)
-        @test_approx_eq_eps D\U DM\U n^2*eps(relty)*(elty<:Complex ? 2:1)
+        @test_approx_eq_eps D\v DM\v 2n^2*eps(relty)*(elty<:Complex ? 2:1)
+        @test_approx_eq_eps D\U DM\U 2n^3*eps(relty)*(elty<:Complex ? 2:1)
     end
     for func in (det, trace)
         @test_approx_eq_eps func(D) func(DM) n^2*eps(relty)
@@ -707,7 +707,7 @@ for relty in (Float16, Float32, Float64, BigFloat), elty in (relty, Complex{relt
             @test_approx_eq_eps func(D) func(DM) n^2*eps(relty)
         end
     end        
-    if elty <: Complex && relty <:BlasFloat
+    if elty <: BlasComplex
         for func in (logdet, sqrtm)
             @test_approx_eq_eps func(D) func(DM) n^2*eps(relty)
         end
