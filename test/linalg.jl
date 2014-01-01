@@ -550,15 +550,14 @@ for elty in (Float32, Float64, Complex64, Complex128)
 end
 
 #Test equivalence of eigenvectors/singular vectors taking into account possible phase (sign) differences
-function test_approx_eq_vecs(a, b)
-    n = size(a)[1]
-    @test n==size(b)[1]
-    elty = typeof(a[1])
-    @test elty==typeof(b[1])
+function test_approx_eq_vecs{S<:Real,T<:Real}(a::StridedVecOrMat{S}, b::StridedVecOrMat{T}, error=nothing)
+    n = size(a, 1)
+    @test n==size(b,1) && size(a,2)==size(b,2)
+    if error==nothing error=n^2*(eps(S)+eps(T)) end
     for i=1:n
         ev1, ev2 = a[:,i], b[:,i]
         deviation = min(abs(norm(ev1-ev2)),abs(norm(ev1+ev2)))
-        @test_approx_eq_eps deviation 0.0 n^2*eps(abs(convert(elty, 1.0)))
+        @test_approx_eq_eps deviation 0.0 error
     end
 end
 
@@ -639,26 +638,26 @@ end
 
 
 #Bidiagonal matrices
-dv = randn(n)
-ev = randn(n-1)
-for elty in (Float32, Float64, Complex64, Complex128)
-    if (elty == Complex64)
-        dv += im*randn(n)
-        ev += im*randn(n-1)
+for relty in (Float32, Float64), elty in (relty, Complex{relty})
+    dv = convert(Vector{elty}, randn(n))
+    ev = convert(Vector{elty}, randn(n-1))
+    if (elty <: Complex)
+        dv += im*convert(Vector{elty}, randn(n))
+        ev += im*convert(Vector{elty}, randn(n-1))
     end
     for isupper in (true, false) #Test upper and lower bidiagonal matrices
-        T = Bidiagonal{elty}(dv, ev, isupper)
+        T = Bidiagonal(dv, ev, isupper)
         
-        @test size(T, 1) == n
+        @test size(T, 1) == size(T, 2) == n
         @test size(T) == (n, n)
         @test full(T) == diagm(dv) + diagm(ev, isupper?1:-1)
         @test Bidiagonal(full(T), isupper) == T
         z = zeros(elty, n)
 
         # idempotent tests
-        @test conj(conj(T)) == T
-        @test transpose(transpose(T)) == T
-        @test ctranspose(ctranspose(T)) == T
+        for func in (conj, transpose, ctranspose)
+            @test func(func(T)) == T
+        end
 
         if (elty <: Real)
             Tfull = full(T)
@@ -668,15 +667,15 @@ for elty in (Float32, Float64, Complex64, Complex128)
             u2, d2, v2 = svd(T)
             @test_approx_eq d1 d2
             test_approx_eq_vecs(u1, u2) 
-            test_approx_eq_vecs(v1, v2) 
+            test_approx_eq_vecs(v1, v2)
+            @test_approx_eq_eps 0 norm(u2*diagm(d2)*v2'-Tfull) 2norm(u1*diagm(d1)*v1'-Tfull)
      
             #Test eigenvalues/vectors
-            #d1, v1 = eig(Tfull)
-            #d2, v2 = eigvals(T), eigvecs(T)
-            #@test_approx_eq d1 d2
-            #test_approx_eq_vecs(v1, v2) 
-            #@test_approx_eq_eps 0 norm(v1 * diagm(d1) * inv(v1) - Tfull) eps(elty)*n*(n+1)
-            #@test_approx_eq_eps 0 norm(v2 * diagm(d2) * inv(v2) - Tfull) eps(elty)*n*(n+1)
+            d1, v1 = eig(Tfull)
+            d2, v2 = eig(T)
+            @test_approx_eq d1 d2
+            test_approx_eq_vecs(v1, v2) 
+            @test_approx_eq_eps 0 norm(v2*diagm(d2)*inv(v2)-Tfull) 2norm(v1*diagm(d1)*inv(v1)-Tfull)
         end
     end
 end
